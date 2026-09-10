@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PixelForge（仮称）— 画像からピクセルキャラクター生成</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --panel: #1b2038;
+    --panel-border: #3b5dc9;
+    --text: #e6e9f5;
+    --text-dim: #9aa3c0;
+    --error: #b13e53;
+    --ok: #38b764;
+    --required: #ff9daa;
+    --recommended: #ffcf6b;
+    --optional: #7d87ad;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Yu Gothic UI", "Yu Gothic", Meiryo, sans-serif;
+    font-size: 14px;
+  }
+  #app {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  h1 { font-size: 20px; margin: 0; }
+  .sub { color: var(--text-dim); font-size: 13px; margin: 0; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+
+  .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 140px; }
+  .field label { font-size: 12px; color: var(--text-dim); }
+  .field input[type="number"] { width: 90px; }
+  input, select {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 5px;
+    color: var(--text);
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+  input[type="file"] { padding: 4px; }
+
+  button {
+    background: var(--panel-border);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 18px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .angle-slots { display: flex; gap: 14px; flex-wrap: wrap; }
+  .angle-slot {
+    flex: 1 1 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .angle-slot .angle-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+  .badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .badge.required { background: rgba(255,157,170,0.18); color: var(--required); }
+  .badge.recommended { background: rgba(255,207,107,0.18); color: var(--recommended); }
+  .badge.optional { background: rgba(125,135,173,0.18); color: var(--optional); }
+  .angle-slot .angle-hint { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+  .previews { display: flex; gap: 20px; flex-wrap: wrap; }
+  .preview-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 12px;
+    flex: 1 1 240px;
+  }
+  .preview-box h3 { font-size: 12px; color: var(--text-dim); margin: 0; font-weight: 600; }
+  .preview-imgs { display: flex; gap: 12px; align-items: flex-end; }
+  .preview-box img {
+    background: repeating-conic-gradient(#2a2f4a 0% 25%, #1b2038 0% 50%) 50% / 16px 16px;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 4px;
+  }
+  .pre-img { max-width: 140px; max-height: 140px; }
+  .final-img { width: 160px; height: 160px; image-rendering: pixelated; }
+
+  .msg { padding: 10px 14px; border-radius: 6px; font-size: 13px; }
+  .msg.error { background: rgba(177,62,83,0.2); color: #ff9daa; border: 1px solid var(--error); }
+  .msg.ok { background: rgba(56,183,100,0.15); color: #8fe8ab; border: 1px solid var(--ok); }
+  .hint { color: var(--text-dim); font-size: 12px; }
+
+  .phase-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(59,93,201,0.15);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .bundle-links { display: flex; gap: 16px; align-items: center; }
+  a.download { color: #9fc0ff; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div id="app">
+    <div>
+      <h1>PixelForge（仮称）</h1>
+      <p class="sub">キャラクター画像を読み込ませると、背景除去→自動トリミング→ドット化→減色→輪郭強調でピクセルキャラクターを生成します。正面は必須、斜め・横向き・後ろ向きは任意です（docs/design/06-multi-angle-input.md）。</p>
+    </div>
+
+    <div class="card">
+      <form id="convert-form">
+        <div class="angle-slots">
+          <div class="angle-slot">
+            <div class="angle-title">正面 <span class="badge required">必須</span></div>
+            <input type="file" id="file-front" accept="image/png,image/jpeg" required />
+            <p class="angle-hint">エージェントアイコンとしても使われる基準アングルです。これ1枚だけでも変換できます（フェーズ1）。</p>
+          </div>
+          <div class="angle-slot">
+            <div class="angle-title">斜め(左向き) <span class="badge recommended">推奨</span></div>
+            <input type="file" id="file-diagonal_left" accept="image/png,image/jpeg" />
+            <p class="angle-hint">追加すると移動時の見た目が自然になります。左右どちらか一方でもOK（もう一方は水平反転で代用）。左右非対称なデザイン（小物を片手に持っている等）の場合は両方追加すると正確に表示されます。追加の手間が最小で効果が一番大きい構成です（フェーズ2）。</p>
+          </div>
+          <div class="angle-slot">
+            <div class="angle-title">斜め(右向き) <span class="badge recommended">推奨</span></div>
+            <input type="file" id="file-diagonal_right" accept="image/png,image/jpeg" />
+            <p class="angle-hint">左向きと同じく、片方だけでも動作します。</p>
+          </div>
+          <div class="angle-slot">
+            <div class="angle-title">横向き <span class="badge optional">任意</span></div>
+            <input type="file" id="file-side" accept="image/png,image/jpeg" />
+            <p class="angle-hint">左右どちらか一方でOK（もう一方は水平反転で代用されます）。</p>
+          </div>
+          <div class="angle-slot">
+            <div class="angle-title">後ろ向き <span class="badge optional">任意</span></div>
+            <input type="file" id="file-back" accept="image/png,image/jpeg" />
+            <p class="angle-hint">上方向への移動時に使われます。</p>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:16px;">
+          <div class="field">
+            <label>グリッドサイズ</label>
+            <input type="number" id="grid-size" value="32" min="32" max="128" />
+          </div>
+          <div class="field">
+            <label>色数</label>
+            <input type="number" id="colors" value="8" min="2" max="16" />
+          </div>
+          <div class="field">
+            <label>出力サイズ(px)</label>
+            <select id="output-size">
+              <option value="16">16</option>
+              <option value="32">32</option>
+              <option value="64" selected>64</option>
+              <option value="128">128</option>
+            </select>
+          </div>
+          <div class="field">
+            <label><input type="checkbox" id="outline" checked /> 輪郭強調</label>
+          </div>
+          <div class="field">
+            <button type="submit" id="submit-btn">変換する</button>
+          </div>
+        </div>
+        <p class="hint">腕を下ろした正面立ちの画像を使ってください。両腕を広げたポーズ（Tポーズ等）はエラーになります。グリッドサイズは32以上を推奨（16〜24だと腕・脚が潰れやすいことを実機で確認済み）。128まで上げると精度は上がりますが、レトロなドット感は薄れます（トレードオフ）。上限は128（Agent Village側の対応サイズ上限と同じ）。斜め・横向き・後ろ向きを追加した場合、色は正面のパレットに自動的に統一されます。</p>
+      </form>
+    </div>
+
+    <div id="status"></div>
+
+    <div class="card" id="result-card" hidden>
+      <div id="phase-banner" class="phase-banner"></div>
+      <div class="previews" id="previews" style="margin-top:14px;"></div>
+      <div class="bundle-links" id="bundle-links" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <script>
+    const ANGLE_LABELS = { front: "正面", diagonal_left: "斜め(左向き)", diagonal_right: "斜め(右向き)", side: "横向き", back: "後ろ向き" };
+
+    const form = document.getElementById("convert-form");
+    const statusEl = document.getElementById("status");
+    const resultCard = document.getElementById("result-card");
+    const submitBtn = document.getElementById("submit-btn");
+    const previewsEl = document.getElementById("previews");
+    const phaseBannerEl = document.getElementById("phase-banner");
+    const bundleLinksEl = document.getElementById("bundle-links");
+
+    function showMessage(text, kind) {
+      statusEl.innerHTML = `<div class="msg ${kind}">${text}</div>`;
+    }
+
+    function renderResults(body) {
+      phaseBannerEl.textContent = body.phaseLabel;
+
+      previewsEl.innerHTML = "";
+      for (const [viewName, view] of Object.entries(body.views)) {
+        const box = document.createElement("div");
+        box.className = "preview-box";
+        const cacheBust = "?t=" + Date.now();
+        box.innerHTML = `
+          <h3>${ANGLE_LABELS[viewName] || viewName}</h3>
+          <div class="preview-imgs">
+            <img class="pre-img" src="${view.preUrl}${cacheBust}" alt="${viewName} pre" />
+            <img class="final-img" src="${view.finalUrl}${cacheBust}" alt="${viewName} final" />
+          </div>
+          <a class="download" href="${view.finalUrl}" download="${viewName}.png">PNGをダウンロード</a>
+        `;
+        previewsEl.appendChild(box);
+      }
+
+      bundleLinksEl.innerHTML = "";
+      if (body.bundleZipUrl) {
+        bundleLinksEl.innerHTML = `
+          <a class="download" href="${body.bundleZipUrl}" download="bundle.zip">バンドルZIPをダウンロード（ani_convert_appへの入力用）</a>
+          <a class="download" href="${body.manifestUrl}" target="_blank">manifest.jsonを見る</a>
+        `;
+      }
+
+      resultCard.hidden = false;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const frontFile = document.getElementById("file-front").files[0];
+      if (!frontFile) return;
+
+      const fd = new FormData();
+      fd.append("front", frontFile);
+      for (const key of ["diagonal_left", "diagonal_right", "side", "back"]) {
+        const f = document.getElementById(`file-${key}`).files[0];
+        if (f) fd.append(key, f);
+      }
+      fd.append("grid_size", document.getElementById("grid-size").value);
+      fd.append("colors", document.getElementById("colors").value);
+      fd.append("output_size", document.getElementById("output-size").value);
+      fd.append("outline", document.getElementById("outline").checked ? "true" : "false");
+
+      submitBtn.disabled = true;
+      resultCard.hidden = true;
+      showMessage("変換中…（背景除去モデルの初回実行時はモデルのダウンロードで時間がかかることがあります）", "ok");
+
+      try {
+        const res = await fetch("/api/convert", { method: "POST", body: fd });
+        const body = await res.json();
+        if (!body.ok) {
+          showMessage(body.error, "error");
+          return;
+        }
+        renderResults(body);
+        showMessage(`変換完了（${body.elapsedSeconds}秒）`, "ok");
+      } catch (err) {
+        showMessage("通信エラー: " + err.message, "error");
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
