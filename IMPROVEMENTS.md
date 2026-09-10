@@ -4,11 +4,11 @@
 
 ## 優先度: 高
 
-### 1. Before/After画像が無い
+### 1. ~~Before/After画像が無い~~ → 対応済み
 
-- **課題**: READMEに変換前後の画像が1枚も無く、テキストのみで説明している。
+- **課題**: READMEに変換前後の画像が1枚も無く、テキストのみで説明していた。
 - **影響**: このツールの価値は「見た目の変換品質」そのものなので、画像なしでは一番伝わるべき情報が伝わらない。閲覧者が実際の出力を想像できない。
-- **修正法**: `scripts/real_sample_chibi.png` / `scripts/real_sample_standing.png` / `scripts/real_sample_fox_doctor.png` など既存のサンプル画像を使い、`grid_size=32/64/128` それぞれの変換結果を並べた比較画像を作成し、READMEの冒頭に埋め込む。
+- **修正法**: `scripts/real_sample_standing.png` / `scripts/real_sample_fox_doctor.png` を実際に `app/pipeline.py` の `convert()` に通し、変換結果を `docs/images/before-after.png`（Before/After）と `docs/images/grid-size-comparison.png`（`grid_size=32/64/128` の比較）として生成し、READMEに埋め込んだ。
 
 ### 2. `requirements.txt` にバージョン固定が無い
 

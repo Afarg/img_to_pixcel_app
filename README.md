@@ -6,6 +6,14 @@
 
 3プロジェクトから成るパイプラインの1段目にあたるツール（[agent-village](https://github.com/Afarg/agent-village) のダッシュボードで使うピクセルキャラクターを生成する、生成物は [ani_convert_app](https://github.com/Afarg/ani_convert_app) がまばたき・歩行アニメーションの差分フレームを作る際の入力にもなる）。単体でも汎用的な「画像→ピクセルキャラ」変換ツールとして使える。
 
+## 実際の変換結果
+
+![Before/After](docs/images/before-after.png)
+
+`grid_size` を変えると、ディテールの再現度が変わる（`colors=8` / `output_size=128` 固定）。
+
+![grid_size comparison](docs/images/grid-size-comparison.png)
+
 ## これは何に使うか（用途）
 
 - ゲームやダッシュボードで使う「自分だけのピクセルキャラクター」を、写真やAI生成イラストから作りたいとき。
